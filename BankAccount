@@ -1,0 +1,176 @@
+class InsufficientFundsError(Exception):
+    pass
+
+class InvalidAmountError(Exception):
+    pass
+
+class WithdrawalLimitError(Exception):
+    pass
+
+class MultipleErrors(Exception):
+    pass
+
+class CheckingAccount:
+
+    def __init__(self, name, account_number, funds):
+        self.name = name
+        self.account_number = account_number
+        self.funds = funds
+    
+    def __str__(self):
+        return f"Name: {self.name} Account Number: {self.account_number} Funds: {self.funds}"
+    
+    def deposit(self, deposit_amt):
+        if deposit_amt <= 0:
+            raise InvalidAmountError("Amount must be greater than zero.")
+        self.funds += deposit_amt
+        with open("transactions.txt", "a") as f:
+            f.write(f"Deposit: {deposit_amt}\n")
+        return self.funds
+    
+    def withdrawal(self, withdrawal_amt):
+        if withdrawal_amt <= 0:
+            raise InvalidAmountError("Amount must be greater than zero.")
+        if self.funds >= withdrawal_amt:
+            self.funds -= withdrawal_amt
+            with open("transactions.txt", "a") as f:
+                f.write(f"Withdrawal: {withdrawal_amt}\n")
+            return self.funds
+        else:
+            raise InsufficientFundsError("Insufficient funds for this withdrawal.")
+    
+    @property
+    def transaction_history(self):
+        try:
+            with open("transactions.txt", "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return "No transactions yet"
+
+class SavingsAccount(CheckingAccount):
+    def __init__(self, name, account_number, funds, interest=1.05):
+        super().__init__(name, account_number, funds)
+        self.interest = interest
+    
+    def withdrawal(self, withdrawal_amt):
+        if withdrawal_amt <= 0:
+            raise InvalidAmountError("Amount must be greater than zero.")
+        total = self.transaction_history.count("Withdrawal")
+
+        if self.funds >= withdrawal_amt and total < 3:
+            self.funds -= withdrawal_amt
+            with open("transactions.txt", "a") as f:
+                f.write(f"Withdrawal: {withdrawal_amt}\n")
+            return self.funds
+        elif withdrawal_amt > self.funds and total < 3:
+            raise InsufficientFundsError("Insufficient funds for this withdrawal.")
+        elif withdrawal_amt <= self.funds and total >= 3:
+            raise WithdrawalLimitError("You have completed too many withdrawals for this savings account.")
+        else:
+            raise MultipleErrors("You have completed too many withdrawals, and you have insufficient funds for withdrawal.")
+    
+    def apply_interest(self):
+        self.funds = self.funds * self.interest
+        return self.funds
+
+accounts = []
+
+def main():
+    account = None
+    while True:
+        print("\nWelcome to the bank account simulator \nWhat would you like to do today?")
+        print("1: Create a checking account")
+        print("2: Create a savings account")
+        print("3: Deposit")
+        print("4: Withdrawal")
+        print("5: Apply Interest (savings only)")
+        print("6: View Transaction History")
+        print("7: Exit")
+
+        selection = int(input("Enter Your Selection: "))
+
+        if selection == 1:
+            name = input("Please enter your account name: ")
+            account_number = input("Please enter your account number: ")
+            funds = float(input("Please enter your existing funds (not a deposit): "))
+            account = CheckingAccount(name, account_number, funds)
+            accounts.append(account)
+            print(f"Checking account created for {name}.")
+
+        elif selection == 2:
+            name = input("Please enter your account name: ")
+            account_number = input("Please enter your account number: ")
+            funds = float(input("Please enter your existing funds (not a deposit): "))
+            account = SavingsAccount(name, account_number, funds)
+            accounts.append(account)
+            print(f"Savings account created for {name}.")
+
+        elif selection == 3:
+            check_name = input("What is the name of the account? ")
+            check_account_id = input("What is the account number? ")
+            for a in accounts:
+                if a.name == check_name and a.account_number == check_account_id:
+                    account = a
+                    break
+            else:
+                print("Account not found.")
+                continue
+            try:
+                deposit_amt = float(input("Please enter the amount you would like to deposit: "))
+                account.deposit(deposit_amt)
+                print(f"Deposit successful. New balance: {account.funds}")
+            except InvalidAmountError as e:
+                print(e)
+
+        elif selection == 4:
+            check_name = input("What is the name of the account? ")
+            check_account_id = input("What is the account number? ")
+            for a in accounts:
+                if a.name == check_name and a.account_number == check_account_id:
+                    account = a
+                    break
+            else:
+                print("Account not found.")
+                continue
+            try:
+                withdrawal_amt = float(input("Please enter the amount you would like to withdraw: "))
+                account.withdrawal(withdrawal_amt)
+                print(f"Withdrawal successful. New balance: {account.funds}")
+            except (InsufficientFundsError, InvalidAmountError, WithdrawalLimitError, MultipleErrors) as e:
+                print(e)
+
+        elif selection == 5:
+            check_name = input("What is the name of the account? ")
+            check_account_id = input("What is the account number? ")
+            for a in accounts:
+                if a.name == check_name and a.account_number == check_account_id:
+                    account = a
+                    break
+            else:
+                print("Account not found.")
+                continue
+            if not isinstance(account, SavingsAccount):
+                print("Interest can only be applied to savings accounts.")
+            else:
+                account.apply_interest()
+                print(f"Interest applied. New balance: {account.funds}")
+
+        elif selection == 6:
+            check_name = input("What is the name of the account? ")
+            check_account_id = input("What is the account number? ")
+            for a in accounts:
+                if a.name == check_name and a.account_number == check_account_id:
+                    account = a
+                    break
+            else:
+                print("Account not found.")
+                continue
+            print(account.transaction_history)
+
+        else:
+            break
+
+main()
+
+
+
